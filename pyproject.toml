@@ -1,9 +1,13 @@
 [tool.poetry]
 name = "prompt-leakage-risk-estimator"
 version = "0.1.0"
-description = ""
+description = "Prompt Leakage Risk Estimator (PLRE)"
 authors = ["samayk27 <samaykumar2712@gmail.com>"]
 readme = "README.md"
+packages=[
+    { include="plre" }
+]
+
 
 [tool.poetry.dependencies]
 python = "^3.12"
