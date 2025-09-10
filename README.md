@@ -11,7 +11,9 @@ Automated tester for LLM apps that detects and scores prompt leakage risks.
 
 ## Getting Started
 ```bash
-git clone <repo>
-cd plre
-pip install -r requirements.txt
-pytest
+pip install poetry
+git clone https://github.com/EDI-Projects/Prompt-Leakage-Risk-Estimator.git
+cd Prompt-Leakage-Risk-Estimator
+poetry install
+poetry shell
+poetry run pytest
