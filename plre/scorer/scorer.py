@@ -1,5 +1,3 @@
-
-
 import json
 from pathlib import Path
 import yaml
@@ -42,12 +40,10 @@ def score_single_attack(attack, config, weights_norm_map, weights, reasons, defa
 
     
     if leak_type:
-        # exact match
         if leak_type in weights:
             score = weights[leak_type]
             reason = reasons.get(leak_type, f"Leak detected: {leak_type}.")
             return {"attack_id": attack_id, "score": score, "reason": reason}
-        # normalized match (case/spacing-insensitive)
         nk = str(leak_type).strip().lower()
         mapped = weights_norm_map.get(nk)
         if mapped:

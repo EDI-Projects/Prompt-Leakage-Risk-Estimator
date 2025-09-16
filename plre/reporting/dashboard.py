@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import pandas as pd
 import json
@@ -9,9 +8,6 @@ import plotly.express as px
 st.set_page_config(page_title="Prompt Leakage Dashboard", layout="wide")
 st.title("🔐 Prompt Leakage Risk — Interactive Reporting")
 
-# ------------------------
-# Option: Load real JSON runs from folder if present
-# ------------------------
 ARTIFACTS_DIR = Path("reporting/artifacts")
 
 def load_runs_from_folder(folder: Path):
@@ -25,13 +21,9 @@ def load_runs_from_folder(folder: Path):
                 else:
                     runs.append(obj)
             except Exception as e:
-                # skip invalid JSON
                 continue
     return runs
 
-# ------------------------
-# MOCK DATA fallback (used when no JSON files found)
-# ------------------------
 mock_runs = [
     {
         "run_id": "run-2025-09-12",
@@ -80,14 +72,11 @@ mock_runs = [
         ]
     }
 ]
-
-# Try to load real runs; if none, use mock_runs
 runs = load_runs_from_folder(ARTIFACTS_DIR)
 if not runs:
     runs = mock_runs
     st.info("No JSON artifacts found in 'reporting/artifacts/'. Using built-in mock data. Put scorer JSONs in that folder to load real runs.")
 
-# normalize timestamps
 for r in runs:
     ts = r.get("timestamp")
     try:
@@ -95,9 +84,6 @@ for r in runs:
     except Exception:
         r["_ts"] = None
 
-# ------------------------
-# Flatten runs into DataFrame
-# ------------------------
 rows = []
 for r in runs:
     run_id = r.get("run_id", "")
@@ -122,36 +108,25 @@ if df.empty:
     st.warning("No attacks present in runs. Check your scorer output format.")
     st.stop()
 
-# ------------------------
-# Summary metrics (top row)
-# ------------------------
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Runs", df["run_id"].nunique())
 c2.metric("Total Attacks", len(df))
 c3.metric("Leaks Found", int(df["leaked_canaries"].apply(lambda x: len(x) if isinstance(x, list) else 0).sum()))
 c4.metric("Avg Aggregate Score", f"{df['aggregate_score'].mean():.2f}")
 
-# ------------------------
-# Charts
-# ------------------------
 st.subheader("📈 Trends & Distribution")
 
-# Risk over time (per run)
 runs_df = pd.DataFrame([{"run_id": r.get("run_id"), "timestamp": r.get("_ts"), "aggregate_score": r.get("aggregate_score", 0)} for r in runs])
 runs_df = runs_df.dropna(subset=["timestamp"]).sort_values("timestamp")
 if not runs_df.empty:
     fig_time = px.line(runs_df, x="timestamp", y="aggregate_score", title="Aggregate Score Over Time")
     st.plotly_chart(fig_time, use_container_width=True)
 
-# Leaks by type
 leak_counts = df["leak_type"].fillna("none").value_counts().reset_index()
 leak_counts.columns = ["leak_type", "count"]
 fig_leak = px.bar(leak_counts, x="leak_type", y="count", title="Leaks by Type")
 st.plotly_chart(fig_leak, use_container_width=True)
 
-# ------------------------
-# Filters + interactive table
-# ------------------------
 st.subheader("🔎 Explore Attacks")
 col1, col2, col3 = st.columns([1,1,2])
 with col1:
@@ -174,9 +149,6 @@ st.write(f"Showing {len(fdf)} rows (filtered)")
 display_cols = ["run_id", "timestamp", "model", "attack_name", "leak_type", "points", "detected_by", "response"]
 st.dataframe(fdf[display_cols].sort_values("timestamp", ascending=False), use_container_width=True)
 
-# ------------------------
-# Attack detail inspector
-# ------------------------
 st.subheader("🧐 Attack Inspector")
 run_choice = st.selectbox("Choose run_id", options=["(none)"] + sorted(df["run_id"].unique().tolist()))
 attack_choice = "(none)"
@@ -193,21 +165,15 @@ if run_choice != "(none)" and attack_choice != "(none)":
     st.write("Leaked canaries:", row["leaked_canaries"])
     st.write("Detected by:", row["detected_by"])
 
-# ------------------------
-# Exports: JSON / HTML / SARIF
-# ------------------------
 st.subheader("📤 Exports")
 colj, colh, cols = st.columns(3)
 
-# full JSON export
 json_bytes = json.dumps(runs, indent=2).encode("utf-8")
 colj.download_button("Download full JSON", data=json_bytes, file_name="prompt_leak_runs.json", mime="application/json")
 
-# HTML table export
 html = df.to_html(index=False)
 colh.download_button("Download HTML Table", data=html.encode("utf-8"), file_name="prompt_leak_table.html", mime="text/html")
 
-# Minimal SARIF generator
 def generate_sarif(runs):
     sarif = {
         "version": "2.1.0",
