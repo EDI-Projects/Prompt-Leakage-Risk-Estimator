@@ -168,7 +168,7 @@ if run_choice != "(none)" and attack_choice != "(none)":
 st.subheader("📤 Exports")
 colj, colh, cols = st.columns(3)
 
-json_bytes = json.dumps(runs, indent=2).encode("utf-8")
+json_bytes = json.dumps(runs, indent=2, default=str).encode("utf-8")
 colj.download_button("Download full JSON", data=json_bytes, file_name="prompt_leak_runs.json", mime="application/json")
 
 html = df.to_html(index=False)
