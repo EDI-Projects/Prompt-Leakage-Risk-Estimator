@@ -9,7 +9,7 @@ class PromptEchoDetector(BaseDetector):
 
     def __init__(self, name: str = "prompt-echo-detector", min_overlap: int = 20):
         super().__init__(name=name)
-        self.min_overlap = min_overlap  # minimum number of characters for overlap to count
+        self.min_overlap = min_overlap
 
     def detect(self, text: str, prompt: str = "") -> List[Dict]:
         """
@@ -26,11 +26,9 @@ class PromptEchoDetector(BaseDetector):
         if not text or not prompt:
             return findings
 
-        # Normalize
         response_lower = text.lower()
         prompt_lower = prompt.lower()
 
-        # Look for large overlapping substrings
         for i in range(len(prompt_lower) - self.min_overlap + 1):
             snippet = prompt_lower[i:i + self.min_overlap]
             if snippet in response_lower:
@@ -39,5 +37,5 @@ class PromptEchoDetector(BaseDetector):
                     "match": prompt[i:i + self.min_overlap],
                     "description": f"Response contains {self.min_overlap}+ char substring from the prompt (possible leakage)."
                 })
-                break  # One strong hit is enough to flag
+                break
         return findings

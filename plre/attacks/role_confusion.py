@@ -1,7 +1,6 @@
-# plre/attacks/role_confusion.py
+
 from typing import Optional, List
 from plre.attacks.utils import simple_mutate
-
 
 class RoleConfusion:
     """Generate role-confusion attack strings and batches."""
@@ -42,19 +41,15 @@ class RoleConfusion:
         """
         out: List[str] = []
 
-        # persona/template variants
         for i in range(persona_variants):
             style = f"template{i}"
             out.append(self.create_attack(payload, style=style, subtle=False))
 
-        # subtle mutated variants
         for _ in range(subtle_count):
             out.append(self.create_attack(payload, subtle=True))
 
-        # polite variant
         out.append(self.create_attack(f"please {payload}", subtle=False))
 
-        # dedupe preserve order
         seen = set()
         uniq: List[str] = []
         for a in out:

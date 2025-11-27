@@ -10,7 +10,7 @@ class RegexDetector(BaseDetector):
 
     def __init__(self, name: str = "regex-detector"):
         super().__init__(name=name)
-        # Common sensitive patterns
+
         self.patterns = {
             "AWS Access Key": r"AKIA[0-9A-Z]{16}",
             "AWS Secret Key": r"(?i)aws(.{0,20})?(secret|key).{0,3}[=:\s][A-Za-z0-9/+=]{40}",

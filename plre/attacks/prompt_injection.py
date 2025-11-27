@@ -1,7 +1,6 @@
-# plre/attacks/prompt_injection.py
+
 from typing import Optional, List
 from plre.attacks.utils import obfuscate_base64, simple_mutate
-
 
 class PromptInjection:
     """Generate prompt injection attack strings and batches of variants."""
@@ -56,23 +55,19 @@ class PromptInjection:
         """
         out: List[str] = []
 
-        # Template variants (template0, template1, ...)
         for i in range(template_variants):
             style = f"template{i}"
             out.append(self.create_attack(payload, style=style, obfuscate=False))
 
-        # Obfuscation variants: base64 + mutated + additional mutated copies
         out.append(self.create_attack(payload, obfuscate=True, style="base64"))
         out.append(self.create_attack(payload, obfuscate=True, style="mutate"))
         for _ in range(max(0, obfuscate_variants - 2)):
             out.append(self.create_attack(payload, obfuscate=True, style="mutate"))
 
-        # Subtle / polite variants
         for i in range(subtle_variants):
             pref = f"please {payload}" if i % 2 == 0 else payload
             out.append(self.create_attack(pref, obfuscate=(i % 2 == 1)))
 
-        # Deduplicate while preserving order
         seen = set()
         uniq: List[str] = []
         for a in out:

@@ -1,4 +1,4 @@
-# plre/attacks/prompt_loader.py
+
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Sequence, Union
 import json
@@ -14,13 +14,11 @@ TEMPLATES_DIR = Path(__file__).resolve().parents[0] / "templates"
 
 PathLike = Union[str, Path]
 
-
 def load_prompts_txt(path: Path) -> List[str]:
     if not path or not path.exists():
         return []
     with path.open("r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip() and not line.strip().startswith("#")]
-
 
 def load_prompts_jsonl(path: Path) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
@@ -37,7 +35,6 @@ def load_prompts_jsonl(path: Path) -> List[Dict[str, Any]]:
                 continue
     return out
 
-
 def load_templates_from_dir(dir_path: Path) -> Dict[str, Any]:
     templates: Dict[str, Any] = {}
     if not dir_path.exists():
@@ -48,7 +45,6 @@ def load_templates_from_dir(dir_path: Path) -> Dict[str, Any]:
         except Exception:
             continue
     return templates
-
 
 def generate_attacks_from_prompts(
     prompts: Sequence[str],
@@ -68,19 +64,16 @@ def generate_attacks_from_prompts(
             continue
         p = p.strip()
 
-        # Prompt-injection variants (batch)
         try:
             pi_variants = attack.prompt_injection.create_batch(p)
         except Exception:
             pi_variants = [attack.run_prompt_injection(p)]
 
-        # Role-confusion variants (batch)
         try:
             rc_variants = attack.role_confusion.create_batch(p)
         except Exception:
             rc_variants = [attack.run_role_confusion(p)]
 
-        # Multi-turn variants: final messages from sequences of different lengths
         mt_variants = []
         for steps in (2, 3, 4):
             seq = attack.run_multi_turn(p, steps=steps)
@@ -89,13 +82,11 @@ def generate_attacks_from_prompts(
 
         combined = pi_variants + rc_variants + mt_variants
 
-        # Limit number of variants per prompt if requested
         if variants_per_prompt and len(combined) > variants_per_prompt:
             combined = combined[:variants_per_prompt]
 
         out.extend(combined)
 
-    # Deduplicate preserving order
     seen = set()
     unique: List[str] = []
     for a in out:
@@ -103,7 +94,6 @@ def generate_attacks_from_prompts(
             seen.add(a)
             unique.append(a)
     return unique
-
 
 def generate_attacks_from_jsonl(records: Sequence[Dict[str, Any]], deterministic: bool = True, variants_per_prompt: int = 10) -> List[str]:
     prompts: List[str] = []
@@ -119,14 +109,12 @@ def generate_attacks_from_jsonl(records: Sequence[Dict[str, Any]], deterministic
                         break
     return generate_attacks_from_prompts(prompts, deterministic=deterministic, variants_per_prompt=variants_per_prompt)
 
-
 def _normalize_paths(arg: Optional[Union[PathLike, Sequence[PathLike]]]) -> List[Path]:
     if arg is None:
         return []
     if isinstance(arg, (list, tuple)):
         return [Path(x) for x in arg]
     return [Path(arg)]
-
 
 def generate_attacks_from_paths(
     txt_path: Optional[Union[PathLike, Sequence[PathLike]]] = None,
@@ -160,7 +148,6 @@ def generate_attacks_from_paths(
     ]
     LOG.info("No prompts found on disk; using %d default prompts", len(defaults))
     return generate_attacks_from_prompts(defaults, deterministic=deterministic, variants_per_prompt=variants_per_prompt)
-
 
 def write_generated_attacks(out_path: Optional[Path] = None, attacks: Optional[List[str]] = None) -> Path:
     out_path = out_path or (REPO_ROOT / "generated_attacks.json")
