@@ -18,42 +18,53 @@ class LLMProvider(ABC):
     def is_configured(self) -> bool:
         pass
 
-class OpenAIProvider(LLMProvider):
+class OllamaProvider(LLMProvider):
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4"):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+    def __init__(self, api_key: Optional[str] = None, model: str = "llama2", base_url: Optional[str] = None):
         self.model = model
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         self.client = None
 
         if self.is_configured():
             try:
-                import openai
-                self.client = openai.OpenAI(api_key=self.api_key)
-                logger.info(f"✓ OpenAI initialized with model: {self.model}")
+                import requests
+                self.client = requests
+                logger.info(f"✓ Ollama initialized with model: {self.model} at {self.base_url}")
             except ImportError:
-                logger.error("openai package not installed. Run: pip install openai")
+                logger.error("requests package not installed. Run: pip install requests")
 
     def is_configured(self) -> bool:
-        return bool(self.api_key and self.api_key.startswith("sk-"))
+        try:
+            import requests
+            response = requests.get(f"{self.base_url}/api/tags", timeout=2)
+            return response.status_code == 200
+        except Exception:
+            return False
 
     def generate(self, prompt: str, temperature: float = 0.7, max_tokens: int = 500, **kwargs) -> str:
         if not self.is_configured():
-            raise ValueError("OpenAI API key not configured. Set OPENAI_API_KEY environment variable.")
+            raise ValueError(f"Ollama not running at {self.base_url}. Start Ollama first: ollama serve")
 
         if not self.client:
-            raise RuntimeError("OpenAI client not initialized.")
+            raise RuntimeError("Ollama client not initialized.")
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                **kwargs
+            response = self.client.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "stream": False,
+                    **kwargs
+                },
+                timeout=300
             )
-            return response.choices[0].message.content
+            response.raise_for_status()
+            return response.json().get("response", "")
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            logger.error(f"Ollama API error: {e}")
             raise
 
 class AnthropicProvider(LLMProvider):
@@ -138,10 +149,9 @@ class GoogleProvider(LLMProvider):
 class LLMFactory:
 
     _providers = {
-        "openai": OpenAIProvider,
-        "gpt": OpenAIProvider,
-        "gpt-4": OpenAIProvider,
-        "gpt-3.5": OpenAIProvider,
+        "ollama": OllamaProvider,
+        "llama": OllamaProvider,
+        "mistral": OllamaProvider,
         "anthropic": AnthropicProvider,
         "claude": AnthropicProvider,
         "google": GoogleProvider,

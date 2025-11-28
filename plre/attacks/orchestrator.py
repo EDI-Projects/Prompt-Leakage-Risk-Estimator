@@ -7,11 +7,16 @@ import logging
 from plre.attacks.attack_base import AttackBase, AttackResult
 from plre.attacks.injection_attacks import (
     PromptInjectionAttack,
-    RoleConfusionAttack,
     InstructionBreakoutAttack,
 )
+from plre.attacks.leakage_attacks import (
+    SystemPromptExtractionAttack,
+    SensitiveInfoDisclosureAttack,
+)
+from plre.attacks.poisoning_attacks import DataPoisoningAttack
+from plre.attacks.misinformation_attacks import MisinformationAttack
+from plre.attacks.consumption_attacks import UnboundedConsumptionAttack
 from plre.attacks.multi_turn import MultiTurnAttack, ChainOfThoughtExploitation, ContextPoisoningAttack
-from plre.attacks.multilingual import MultilingualAttack, AccentChangeAttack
 
 @dataclass
 class ScenarioResult:
@@ -46,34 +51,42 @@ class AttackOrchestrator:
     def _initialize_attacks(self) -> List[AttackBase]:
         return [
             PromptInjectionAttack(),
-            RoleConfusionAttack(),
             InstructionBreakoutAttack(),
+            SystemPromptExtractionAttack(),
+            SensitiveInfoDisclosureAttack(),
+            DataPoisoningAttack(),
+            MisinformationAttack(),
+            UnboundedConsumptionAttack(),
             MultiTurnAttack(),
             ChainOfThoughtExploitation(),
             ContextPoisoningAttack(),
-            MultilingualAttack(),
-            AccentChangeAttack(),
         ]
 
     def _define_scenarios(self) -> Dict[str, List[str]]:
         return {
-            "basic_injection": ["prompt_injection", "role_confusion"],
-            "advanced_injection": [
-                "prompt_injection",
-                "instruction_breakout",
-                "role_confusion",
+            "basic_injection": ["prompt_injection", "instruction_breakout"],
+            "leakage": [
+                "system_prompt_leakage",
+                "sensitive_info_disclosure",
             ],
-            "multi_turn_escalation": ["multi_turn", "cot_exploitation", "context_poisoning"],
-            "multilingual_bypass": ["multilingual", "unicode_evasion"],
+            "integrity": [
+                "data_poisoning",
+                "misinformation",
+            ],
+            "resource_threats": [
+                "unbounded_consumption",
+            ],
             "comprehensive": [
                 "prompt_injection",
-                "role_confusion",
                 "instruction_breakout",
+                "system_prompt_leakage",
+                "sensitive_info_disclosure",
+                "data_poisoning",
+                "misinformation",
+                "unbounded_consumption",
                 "multi_turn",
                 "cot_exploitation",
                 "context_poisoning",
-                "multilingual",
-                "unicode_evasion",
             ],
         }
 
