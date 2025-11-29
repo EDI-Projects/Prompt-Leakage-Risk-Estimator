@@ -1,18 +1,37 @@
 #!/usr/bin/env python
 import json
 import sys
+import argparse
 from datetime import datetime
 from pathlib import Path
 from plre.models.llm_providers import LLMFactory, LLMCallback
 from plre.attacks.orchestrator import AttackOrchestrator
 
-# Configure provider here: 'ollama', 'claude', or 'gemini'
-PROVIDER = 'ollama'  # Change to 'claude' or 'gemini' for cloud models
 MODEL_CONFIG = {
     'ollama': {'provider': 'ollama', 'model': 'llama2'},
-    'claude': {'provider': 'claude', 'model': 'claude-3-sonnet-20240229'},
-    'gemini': {'provider': 'gemini', 'model': 'gemini-pro'}
+    'gemini': {'provider': 'gemini', 'model': 'gemini-2.5-flash'}
 }
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description='Run PLRE comprehensive attack test against LLM',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  poetry run python run_attack_test.py                    # Use default provider (ollama)
+  poetry run python run_attack_test.py --provider gemini  # Use Gemini
+  poetry run python run_attack_test.py --provider ollama  # Use Ollama explicitly
+        """
+    )
+    parser.add_argument(
+        '--provider',
+        type=str,
+        default='ollama',
+        choices=['ollama', 'gemini'],
+        help='LLM provider to use (default: ollama)'
+    )
+    return parser.parse_args()
 
 def convert_to_dashboard_format(report: dict, provider: str) -> dict:
     """Convert orchestrator output to dashboard-compatible format."""
@@ -50,8 +69,6 @@ def convert_to_dashboard_format(report: dict, provider: str) -> dict:
             }
             attacks.append(attack_entry)
             attack_id += 1
-    
-    # Calculate aggregate score (0-100)
     aggregate_score = (successful_attacks / total_attacks * 100) if total_attacks > 0 else 0
     
     return {
@@ -70,46 +87,49 @@ def convert_to_dashboard_format(report: dict, provider: str) -> dict:
 # Create output directory
 Path("reporting/artifacts").mkdir(parents=True, exist_ok=True)
 
-try:
-    if PROVIDER not in MODEL_CONFIG:
-        print(f"✗ Invalid provider: {PROVIDER}")
-        print(f"Available: {list(MODEL_CONFIG.keys())}")
+if __name__ == '__main__':
+    args = parse_arguments()
+    provider = args.provider
+    
+    try:
+        if provider not in MODEL_CONFIG:
+            print(f"✗ Invalid provider: {provider}")
+            print(f"Available: {list(MODEL_CONFIG.keys())}")
+            sys.exit(1)
+        
+        config = MODEL_CONFIG[provider]
+        print(f"📡 Initializing {provider.upper()} provider...")
+        print(f"   Model: {config['model']}")
+        
+        llm_provider = LLMFactory.create(config['provider'], model=config['model'])
+        llm = LLMCallback(llm_provider, temperature=0.7, max_tokens=300)
+        orchestrator = AttackOrchestrator()
+        
+        print(f"🎯 Running comprehensive attack test...")
+        report = orchestrator.run_comprehensive_test(llm)
+        report['model'] = config['model']
+        report['provider'] = provider
+        
+        # Convert to dashboard format
+        dashboard_format = convert_to_dashboard_format(report, provider)
+        
+        # Save in dashboard format
+        output_file = f"reporting/artifacts/run-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+        with open(output_file, 'w') as f:
+            json.dump(dashboard_format, f, indent=2)
+        
+        print(f"✓ Report saved to {output_file}")
+        print(f"✓ Attacks executed: {dashboard_format['total_attacks']}")
+        print(f"✓ Successful attacks: {dashboard_format['successful_attacks']}")
+        print(f"✓ Risk score: {dashboard_format['aggregate_score']:.1f}%")
+        print(f"📊 Refresh dashboard at http://localhost:8501")
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        if provider == 'ollama':
+            print("   Make sure Ollama is running: ollama serve")
+        elif provider == 'gemini':
+            print("   Make sure GOOGLE_API_KEY is set in .env")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
-    
-    config = MODEL_CONFIG[PROVIDER]
-    print(f"📡 Initializing {PROVIDER.upper()} provider...")
-    print(f"   Model: {config['model']}")
-    
-    provider = LLMFactory.create(config['provider'], model=config['model'])
-    llm = LLMCallback(provider, temperature=0.7, max_tokens=300)
-    orchestrator = AttackOrchestrator()
-    
-    print(f"🎯 Running comprehensive attack test...")
-    report = orchestrator.run_comprehensive_test(llm)
-    report['model'] = config['model']
-    report['provider'] = PROVIDER
-    
-    # Convert to dashboard format
-    dashboard_format = convert_to_dashboard_format(report, PROVIDER)
-    
-    # Save in dashboard format
-    output_file = f"reporting/artifacts/run-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
-    with open(output_file, 'w') as f:
-        json.dump(dashboard_format, f, indent=2)
-    
-    print(f"✓ Report saved to {output_file}")
-    print(f"✓ Attacks executed: {dashboard_format['total_attacks']}")
-    print(f"✓ Successful attacks: {dashboard_format['successful_attacks']}")
-    print(f"✓ Risk score: {dashboard_format['aggregate_score']:.1f}%")
-    print(f"📊 Refresh dashboard at http://localhost:8501")
-except Exception as e:
-    print(f"✗ Error: {e}")
-    if PROVIDER == 'ollama':
-        print("   Make sure Ollama is running: ollama serve")
-    elif PROVIDER == 'claude':
-        print("   Make sure ANTHROPIC_API_KEY is set in .env")
-    elif PROVIDER == 'gemini':
-        print("   Make sure GOOGLE_API_KEY is set in .env")
-    import traceback
-    traceback.print_exc()
 

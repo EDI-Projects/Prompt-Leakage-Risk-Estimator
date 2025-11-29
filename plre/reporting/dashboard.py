@@ -6,7 +6,7 @@ from datetime import datetime
 import plotly.express as px
 
 st.set_page_config(page_title="Prompt Leakage Dashboard", layout="wide")
-st.title("🔐 Prompt Leakage Risk — Interactive Reporting")
+st.title("Prompt Leakage Risk — Interactive Reporting")
 
 ARTIFACTS_DIR = Path("reporting/artifacts")
 
@@ -114,7 +114,7 @@ c2.metric("Total Attacks", len(df))
 c3.metric("Leaks Found", int(df["leaked_canaries"].apply(lambda x: len(x) if isinstance(x, list) else 0).sum()))
 c4.metric("Avg Aggregate Score", f"{df['aggregate_score'].mean():.2f}")
 
-st.subheader("📈 Trends & Distribution")
+st.subheader("Trends & Distribution")
 
 runs_df = pd.DataFrame([{"run_id": r.get("run_id"), "timestamp": r.get("_ts"), "aggregate_score": r.get("aggregate_score", 0)} for r in runs])
 runs_df = runs_df.dropna(subset=["timestamp"]).sort_values("timestamp")
@@ -127,7 +127,7 @@ leak_counts.columns = ["leak_type", "count"]
 fig_leak = px.bar(leak_counts, x="leak_type", y="count", title="Leaks by Type")
 st.plotly_chart(fig_leak, use_container_width=True)
 
-st.subheader("🔎 Explore Attacks")
+st.subheader("Explore Attacks")
 col1, col2, col3 = st.columns([1,1,2])
 with col1:
     selected_model = st.selectbox("Model", options=["(all)"] + sorted(df["model"].unique().tolist()))
@@ -149,7 +149,7 @@ st.write(f"Showing {len(fdf)} rows (filtered)")
 display_cols = ["run_id", "timestamp", "model", "attack_name", "leak_type", "points", "detected_by", "response"]
 st.dataframe(fdf[display_cols].sort_values("timestamp", ascending=False), use_container_width=True)
 
-st.subheader("🧐 Attack Inspector")
+st.subheader("Attack Inspector")
 run_choice = st.selectbox("Choose run_id", options=["(none)"] + sorted(df["run_id"].unique().tolist()))
 attack_choice = "(none)"
 if run_choice != "(none)":
@@ -165,7 +165,7 @@ if run_choice != "(none)" and attack_choice != "(none)":
     st.write("Leaked canaries:", row["leaked_canaries"])
     st.write("Detected by:", row["detected_by"])
 
-st.subheader("📤 Exports")
+st.subheader("Exports")
 colj, colh, cols = st.columns(3)
 
 json_bytes = json.dumps(runs, indent=2, default=str).encode("utf-8")

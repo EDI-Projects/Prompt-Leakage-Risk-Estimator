@@ -2,7 +2,7 @@
 
 ## Supported Providers
 
-PLRE supports 3 LLM providers:
+PLRE supports 2 LLM providers:
 - ✅ **Ollama** (local, free, open-source)
 - ✅ **Gemini** (Google, requires API key)
 
@@ -23,14 +23,11 @@ poetry add streamlit
 
 ## Running Options
 
-### Option A: Run Tests with Real Models
+### Option A: Run Main Application
 
 ```bash
-# Integration tests with Ollama
-poetry run pytest tests/test_with_real_llms.py -v
-
-# Or specific test:
-poetry run pytest tests/test_with_real_llms.py::TestOllamaIntegration::test_injection_attack -v
+# Run comprehensive attack test with your configured provider
+poetry run python run_attack_test.py
 ```
 
 ### Option B: CLI Commands
@@ -44,29 +41,27 @@ poetry run plre detect --file response.txt --output findings.json
 
 # Score detected findings
 poetry run plre score --output risk_report.json
+
+# View dashboard
+poetry run streamlit run plre/reporting/dashboard.py
 ```
 
-### Option C: Use Python Directly
+### Option C: Use Poetry with Python
 
-```python
+```bash
+poetry run python -c "
 from plre.models.llm_providers import LLMFactory, LLMCallback
-from plre.attacks.injection_attacks import PromptInjectionAttack
 from plre.attacks.orchestrator import AttackOrchestrator
 
 # Create Ollama provider
 provider = LLMFactory.create('ollama', model='llama2')
 llm = LLMCallback(provider, temperature=0.7, max_tokens=500)
 
-# Run single attack
-attack = PromptInjectionAttack()
-prompt = attack.generate_prompt()
-response = llm(prompt)
-print(f"Response: {response}")
-
 # Run orchestrated test
 orchestrator = AttackOrchestrator()
 result = orchestrator.run_scenario('basic_injection', llm)
-print(f"Risk Level: {result.overall_risk_level}")
+print(f'Risk Level: {result.overall_risk_level}')
+"
 ```
 
 ### Option D: Interactive Dashboard
@@ -76,9 +71,7 @@ print(f"Risk Level: {result.overall_risk_level}")
 poetry run streamlit run plre/reporting/dashboard.py
 
 # Opens at http://localhost:8501
-# Shows:
-# - Mock data by default
-# - Real attack results if JSON files saved to reporting/artifacts/
+# Shows real attack results from JSON files saved to reporting/artifacts/
 ```
 
 ## Environment Configuration
@@ -89,7 +82,6 @@ OLLAMA_BASE_URL="http://localhost:11434"
 DEFAULT_MODEL=ollama
 FALLBACK_MODEL=llama
 
-ANTHROPIC_API_KEY="sk-ant-..."    # Optional: Claude
 GOOGLE_API_KEY="AIzaSy..."         # Optional: Gemini
 ```
 
@@ -107,24 +99,12 @@ poetry run python run_attack_test.py
 poetry run streamlit run plre/reporting/dashboard.py
 ```
 
-### Using Claude (Anthropic)
-```bash
-# 1. Set API key in .env:
-# ANTHROPIC_API_KEY="sk-ant-..."
-
-# 2. Edit run_attack_test.py, line 10:
-# PROVIDER = 'claude'
-
-# 3. Run:
-poetry run python run_attack_test.py
-```
-
 ### Using Gemini (Google)
 ```bash
 # 1. Set API key in .env:
 # GOOGLE_API_KEY="AIzaSy..."
 
-# 2. Edit run_attack_test.py, line 10:
+# 2. Edit run_attack_test.py, line 9:
 # PROVIDER = 'gemini'
 
 # 3. Run:
@@ -132,9 +112,9 @@ poetry run python run_attack_test.py
 ```
 
 The script will:
-1. ✅ Connect to your chosen provider
-2. ✅ Run 3 scenarios (basic, advanced, comprehensive)
-3. ✅ Execute 8 total attacks on the model
+1. ✅ Connect to your chosen provider (Ollama or Gemini)
+2. ✅ Run 5 scenarios (basic_injection, leakage, integrity, resource_threats, comprehensive)
+3. ✅ Execute 10 total attacks on the model
 4. ✅ Save formatted results to `reporting/artifacts/`
 5. ✅ Display results in the Streamlit dashboard
 
@@ -174,8 +154,11 @@ Error: Google API key not configured
 → Restart the script
 ```
 
-### General Issues
-→ Pull it with: ollama pull llama2
+### Model Issues
+```
+Error: Model not found or unavailable
+→ For Ollama: Make sure model is downloaded with: ollama pull <model_name>
+→ For Gemini: Check API quota and rate limits
 ```
 
 **Memory issues?**

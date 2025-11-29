@@ -1,7 +1,7 @@
 import math
 import re
 from typing import List, Dict
-from .base_detector import BaseDetector
+from plre.detectors.base_detector import BaseDetector
 
 class EntropyDetector(BaseDetector):
     def __init__(self, threshold: float = 4.5, min_length: int = 12, name: str = "entropy-detector"):
@@ -37,9 +37,36 @@ class EntropyDetector(BaseDetector):
         
         return findings
     
+    @staticmethod
+    def shannon_entropy(data: str) -> float:
+        """Calculate Shannon entropy of a string.
+        
+        Shannon entropy formula: H(X) = -Σ P(xi) * log2(P(xi))
+        where P(xi) is the probability of character xi appearing in the string.
+        
+        Higher entropy indicates more randomness (e.g., API keys, tokens).
+        """
+        if not data:
+            return 0.0
+        
+        # Count character frequencies
+        char_counts = {}
+        for char in data:
+            char_counts[char] = char_counts.get(char, 0) + 1
+        
+        # Calculate entropy
+        entropy = 0.0
+        data_len = len(data)
+        
+        for count in char_counts.values():
+            probability = count / data_len
+            if probability > 0:
+                entropy -= probability * math.log2(probability)
+        
+        return entropy
+    
     def _is_known_fp(self, token: str, context: str) -> bool:
         """Check for known false positive patterns"""
-
         if re.search(r'https?://|www\.|\.com|\.org', token, re.IGNORECASE):
             return True
         if token.count('_') > 2 or token.count('-') > 2:
@@ -64,7 +91,6 @@ class EntropyDetector(BaseDetector):
         
         if any(c.isupper() for c in token) and any(c.islower() for c in token):
             confidence += 0.1
-        
         if self._is_known_fp(token, context):
             confidence *= 0.3
         

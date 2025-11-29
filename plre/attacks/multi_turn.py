@@ -44,7 +44,7 @@ class ChainOfThoughtExploitation(AttackBase):
     def __init__(self):
         super().__init__(
             name="Chain of Thought Exploitation",
-            attack_type="cot_exploit",
+            attack_type="cot_exploitation",
             description="Uses CoT prompting to reveal internal reasoning"
         )
 
@@ -73,7 +73,7 @@ class ContextPoisoningAttack(AttackBase):
     def __init__(self):
         super().__init__(
             name="Context Poisoning",
-            attack_type="context_poison",
+            attack_type="context_poisoning",
             description="Injects fake context to change behavior"
         )
 
