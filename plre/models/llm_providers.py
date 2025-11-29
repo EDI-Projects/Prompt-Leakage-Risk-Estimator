@@ -120,6 +120,9 @@ class GoogleProvider(LLMProvider):
                 logger.info(f"✓ Google Gemini initialized with model: {self.model}")
             except ImportError:
                 logger.error("google-generativeai package not installed. Run: pip install google-generativeai")
+            except Exception as e:
+                logger.error(f"Failed to initialize Google Gemini: {e}")
+                self.client = None
 
     def is_configured(self) -> bool:
         return bool(self.api_key and len(self.api_key) > 20)
@@ -129,7 +132,7 @@ class GoogleProvider(LLMProvider):
             raise ValueError("Google API key not configured. Set GOOGLE_API_KEY environment variable.")
 
         if not self.client:
-            raise RuntimeError("Google Gemini client not initialized.")
+            raise RuntimeError("Google Gemini client not initialized. Check your API key and google-generativeai package.")
 
         try:
             generation_config = {

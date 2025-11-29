@@ -4,7 +4,6 @@
 
 PLRE supports 3 LLM providers:
 - ✅ **Ollama** (local, free, open-source)
-- ✅ **Claude** (Anthropic, requires API key)
 - ✅ **Gemini** (Google, requires API key)
 
 ## Prerequisites
@@ -166,13 +165,6 @@ Error: Model 'llama2' not found
 → Pull it with: ollama pull llama2
 ```
 
-### Claude (Anthropic) Issues
-**API key not configured?**
-```
-Error: Anthropic API key not configured
-→ Set ANTHROPIC_API_KEY in .env file
-→ Restart the script
-```
 
 ### Gemini (Google) Issues
 **API key not configured?**

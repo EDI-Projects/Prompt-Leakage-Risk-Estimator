@@ -4,42 +4,68 @@ from typing import List, Dict
 from .base_detector import BaseDetector
 
 class EntropyDetector(BaseDetector):
-    """
-    Detects high-entropy substrings (e.g., API keys, tokens, secrets).
-    High entropy usually indicates random-looking sensitive data.
-    """
-
-    def __init__(self, threshold: float = 4.0, min_length: int = 8, name: str = "entropy-detector"):
+    def __init__(self, threshold: float = 4.5, min_length: int = 12, name: str = "entropy-detector"):
         super().__init__(name=name)
-        self.threshold = threshold
-        self.min_length = min_length
-
-    def shannon_entropy(self, s: str) -> float:
-        """Calculate Shannon entropy for a string."""
-        if not s:
-            return 0.0
-        freq = {ch: s.count(ch) for ch in set(s)}
-        probs = [c / len(s) for c in freq.values()]
-        return -sum(p * math.log2(p) for p in probs)
-
+        self.threshold = threshold  
+        self.min_length = min_length  
+    
     def detect(self, text: str) -> List[Dict]:
-        """
-        Finds substrings with high entropy.
-        Uses regex to grab candidate tokens (alphanumeric).
-        """
         findings = []
         if not text:
             return findings
-
-        tokens = re.findall(r"[A-Za-z0-9\-_]{8,}", text)
+        
+        tokens = re.findall(r"[A-Za-z0-9\-_]{12,}", text)  
+        
         for tok in tokens:
-            if len(tok) >= self.min_length:
-                ent = self.shannon_entropy(tok)
-                if ent >= self.threshold:
+            if len(tok) < self.min_length:
+                continue
+            if self._is_known_fp(tok, text):
+                continue
+            
+            ent = self.shannon_entropy(tok)
+            if ent >= self.threshold:
+                confidence = self._validate_high_entropy(tok, text, ent)
+                
+                if confidence > 0.5:  
                     findings.append({
                         "detector": self.name,
                         "match": tok,
                         "entropy": ent,
-                        "description": f"High-entropy string detected: {tok[:6]}... (entropy={ent:.2f})"
+                        "confidence": confidence,
+                        "description": f"High-entropy string: {tok[:8]}... (entropy={ent:.2f})"
                     })
+        
         return findings
+    
+    def _is_known_fp(self, token: str, context: str) -> bool:
+        """Check for known false positive patterns"""
+
+        if re.search(r'https?://|www\.|\.com|\.org', token, re.IGNORECASE):
+            return True
+        if token.count('_') > 2 or token.count('-') > 2:
+            return True
+        
+        context_lower = context.lower()
+        educational_markers = ['example', 'like this', 'such as', 'format']
+        if any(marker in context_lower for marker in educational_markers):
+            return True
+        
+        return False
+    
+    def _validate_high_entropy(self, token: str, context: str, entropy: float) -> float:
+        """Calculate confidence that this is actually a secret"""
+        confidence = 0.6  
+        
+        if entropy > 5.0:
+            confidence += 0.2
+        
+        if 20 <= len(token) <= 64:
+            confidence += 0.15
+        
+        if any(c.isupper() for c in token) and any(c.islower() for c in token):
+            confidence += 0.1
+        
+        if self._is_known_fp(token, context):
+            confidence *= 0.3
+        
+        return min(1.0, confidence)

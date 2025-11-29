@@ -22,8 +22,17 @@ rich = "^13.0.0"
 anthropic = "^0.30.0"
 google-generativeai = "^0.8.0"
 requests = "^2.31.0"
+tqdm = "^4.66.0"
 
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+

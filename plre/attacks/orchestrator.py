@@ -4,6 +4,15 @@ from datetime import datetime
 from dataclasses import dataclass, asdict
 import logging
 
+try:
+    from tqdm import tqdm
+except ImportError:
+    # Fallback if tqdm not installed
+    def tqdm(iterable, desc=None, total=None):
+        if desc:
+            print(f"{desc}")
+        return iterable
+
 from plre.attacks.attack_base import AttackBase, AttackResult
 from plre.attacks.injection_attacks import (
     PromptInjectionAttack,
@@ -105,18 +114,25 @@ class AttackOrchestrator:
         if scenario_name not in self.scenarios:
             raise ValueError(f"Unknown scenario: {scenario_name}")
 
+        print(f"\n{'=' * 70}")
+        print(f"Running Scenario: {scenario_name.upper()}")
+        print(f"{'=' * 70}\n")
+        
         self.logger.info(f"Starting scenario: {scenario_name}")
         attack_types = self.scenarios[scenario_name]
         attack_results = []
         successful_attacks = 0
 
-        for attack_type in attack_types:
+        for idx, attack_type in enumerate(tqdm(attack_types, desc="Processing attacks", unit="attack"), 1):
             attack = self.get_attack_by_type(attack_type)
             if not attack:
                 self.logger.warning(f"Attack type not found: {attack_type}")
+                print(f"  [{idx}/{len(attack_types)}] {attack_type}: NOT FOUND")
                 continue
 
             try:
+                print(f"  [{idx}/{len(attack_types)}] {attack.name}...", end=" ", flush=True)
+                
                 prompt = attack.generate_prompt()
                 self.logger.debug(f"Generated prompt for {attack_type}: {prompt[:50]}...")
 
@@ -128,13 +144,17 @@ class AttackOrchestrator:
 
                 if result.success:
                     successful_attacks += 1
+                    leakage_str = ", ".join(result.leakage_detected[:2]) if result.leakage_detected else "generic leakage"
+                    print(f"SUCCESS | Leakage: {leakage_str}")
                     self.logger.info(
-                        f"✓ Attack successful: {attack.name} - Leakage: {result.leakage_detected}"
+                        f"Attack successful: {attack.name} - Leakage: {result.leakage_detected}"
                     )
                 else:
-                    self.logger.info(f"✗ Attack unsuccessful: {attack.name}")
+                    print(f"FAILED")
+                    self.logger.info(f"Attack unsuccessful: {attack.name}")
 
             except Exception as e:
+                print(f"ERROR: {str(e)[:50]}")
                 self.logger.error(f"Error executing {attack_type}: {str(e)}")
                 continue
 
@@ -151,6 +171,15 @@ class AttackOrchestrator:
         )
 
         self.results.append(scenario_result)
+        
+        print(f"\n{'─' * 70}")
+        print(f"Scenario Summary: {scenario_name}")
+        print(f"  Total Attacks: {len(attack_types)}")
+        print(f"  Successful: {successful_attacks}")
+        print(f"  Failed: {len(attack_types) - successful_attacks}")
+        print(f"  Risk Level: {overall_risk.upper()}")
+        print(f"{'─' * 70}\n")
+        
         self.logger.info(
             f"Scenario complete: {scenario_name} - Risk Level: {overall_risk} "
             f"({successful_attacks}/{len(attack_types)} attacks successful)"
@@ -163,16 +192,25 @@ class AttackOrchestrator:
         llm_response_callback: Callable[[str], str],
     ) -> Dict:
         """Run comprehensive security test across all scenarios."""
+        print(f"\n{'=' * 70}")
+        print(f"COMPREHENSIVE SECURITY TEST - ALL SCENARIOS")
+        print(f"{'=' * 70}\n")
+        
         self.logger.info("Starting comprehensive security test...")
         scenario_results = {}
 
-        for scenario_name in self.scenarios.keys():
+        for scenario_name in tqdm(self.scenarios.keys(), desc="Running scenarios", unit="scenario"):
             try:
                 result = self.run_scenario(scenario_name, llm_response_callback)
                 scenario_results[scenario_name] = asdict(result)
             except Exception as e:
                 self.logger.error(f"Error in scenario {scenario_name}: {str(e)}")
+                print(f"ERROR in {scenario_name}: {str(e)}\n")
                 continue
+
+        print(f"\n{'=' * 70}")
+        print(f"COMPREHENSIVE TEST COMPLETE")
+        print(f"{'=' * 70}\n")
 
         return {
             "timestamp": datetime.now().isoformat(),
