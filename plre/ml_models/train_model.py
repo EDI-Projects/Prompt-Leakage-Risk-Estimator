@@ -22,7 +22,6 @@ def train_leak_detector(
     print("TRAINING LEAK DETECTION MODEL")
     print("=" * 70)
     
-    # Generate dataset
     print(f"\n1. Generating {n_samples} training samples...")
     generator = LeakDatasetGenerator()
     texts, labels = generator.generate_dataset(n_samples)

@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from plre.models.llm_providers import LLMFactory, LLMCallback
 from plre.attacks.orchestrator import AttackOrchestrator
+from plre.reporting.detailed_report import DetailedReportGenerator
 
 MODEL_CONFIG = {
     'ollama-tinyllama': {'provider': 'ollama', 'model': 'tinyllama'},
@@ -135,11 +136,24 @@ if __name__ == '__main__':
         
         dashboard_data = convert_to_dashboard_format(report, provider)
         
+        # Save dashboard JSON
         output_file = f"reporting/artifacts/run-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
         with open(output_file, 'w') as f:
             json.dump(dashboard_data, f, indent=2)
         
-        print(f"\n✓ Results saved to: {output_file}")
+        print(f"\n✓ Dashboard data saved to: {output_file}")
+        
+        # Generate detailed reports
+        print("\nGenerating detailed reports...")
+        report_gen = DetailedReportGenerator()
+        detailed_files = report_gen.generate_full_report(
+            campaign_results=report,
+            model_name=config['model'],
+            provider=provider,
+            format="all"  # Generate all formats
+        )
+        report_gen.print_summary(detailed_files)
+        
         print(f"\n{'='*70}")
         print("SUMMARY")
         print("="*70)
@@ -147,10 +161,22 @@ if __name__ == '__main__':
         print(f"Successful: {dashboard_data['successful_attacks']}")
         print(f"Success Rate: {dashboard_data['aggregate_score']:.1f}%")
         print(f"Total Leakage: {dashboard_data['total_leakage']}")
+        
+        # Show canary report if available
+        canary_report = report.get('summary', {}).get('canary_report', {})
+        if canary_report:
+            print(f"\nCanary Leaks: {canary_report.get('leaked_canaries', 0)}/{canary_report.get('total_canaries', 0)}")
+            if canary_report.get('leaked_secrets'):
+                print("🚨 Leaked Canaries:")
+                for leak in canary_report['leaked_secrets']:
+                    print(f"  - {leak['id']} ({leak['type']})")
+        
         print("="*70)
         
-        print("\nView results in dashboard:")
-        print("  poetry run streamlit run plre/reporting/dashboard.py")
+        print("\nView results:")
+        print("  Dashboard: poetry run streamlit run plre/reporting/dashboard.py")
+        print(f"  HTML Report: open {detailed_files.get('html', 'N/A')}")
+        print(f"  Markdown: cat {detailed_files.get('markdown', 'N/A')}")
         
     except KeyboardInterrupt:
         print("\n\nTest interrupted by user")

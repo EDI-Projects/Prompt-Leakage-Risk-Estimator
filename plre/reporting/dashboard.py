@@ -226,6 +226,9 @@ st.subheader("Explore & Filter Attacks")
 tab1, tab2, tab3 = st.tabs(["Detailed View", "Attack Inspector", "Summary Statistics"])
 
 with tab1:
+    st.markdown("### 🔍 Detailed Attack Analysis")
+    st.markdown("Filter and examine each attack with full prompt/response details")
+    
     col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
         selected_model = st.selectbox("Filter by Model", options=["(all)"] + sorted(df["model"].unique().tolist()))
@@ -243,28 +246,125 @@ with tab1:
         mask = fdf["prompt"].fillna("").str.contains(search_text, case=False) | fdf["response"].fillna("").str.contains(search_text, case=False)
         fdf = fdf[mask]
 
-    st.write(f"**Showing {len(fdf)} rows** (filtered from {len(df)} total)")
+    st.write(f"**Showing {len(fdf)} attacks** (filtered from {len(df)} total)")
     
-    # Enhanced table display
-    display_cols = ["run_id", "timestamp", "model", "attack_name", "leak_type", "points"]
+    # Display attacks with expandable details
+    fdf_sorted = fdf.sort_values("timestamp", ascending=False).reset_index(drop=True)
     
-    # Add color coding for success/failure
-    styled_df = fdf[display_cols].sort_values("timestamp", ascending=False).copy()
-    styled_df = styled_df.reset_index(drop=True)
+    # Show only successful attacks toggle
+    show_only_success = st.checkbox("Show only successful attacks", value=False)
+    if show_only_success:
+        fdf_sorted = fdf_sorted[fdf_sorted["points"] > 0]
     
-    st.dataframe(
-        styled_df,
-        width='stretch',
-        height=400,
-        column_config={
-            "run_id": st.column_config.TextColumn("Run ID"),
-            "timestamp": st.column_config.DatetimeColumn("Execution Time"),
-            "model": st.column_config.TextColumn("Model"),
-            "attack_name": st.column_config.TextColumn("Attack"),
-            "leak_type": st.column_config.TextColumn("Leak Type"),
-            "points": st.column_config.NumberColumn("Points", format="%d")
-        }
-    )
+    # Pagination
+    attacks_per_page = st.selectbox("Attacks per page", [10, 25, 50, 100], index=1)
+    total_pages = max(1, (len(fdf_sorted) + attacks_per_page - 1) // attacks_per_page)
+    page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, step=1)
+    
+    start_idx = (page - 1) * attacks_per_page
+    end_idx = min(start_idx + attacks_per_page, len(fdf_sorted))
+    page_data = fdf_sorted.iloc[start_idx:end_idx]
+    
+    st.markdown(f"**Page {page} of {total_pages}** (showing {start_idx + 1}-{end_idx} of {len(fdf_sorted)})")
+    
+    # Display each attack as a card
+    for idx, row in page_data.iterrows():
+        # Determine status and styling
+        is_success = row['points'] > 0
+        status_emoji = "✗ LEAKED" if is_success else "✓ SAFE"
+        status_color = "red" if is_success else "green"
+        
+        # Get severity if available
+        severity = "unknown"
+        if 'metadata' in row and isinstance(row['metadata'], dict):
+            findings = row['metadata'].get('finding_details', [])
+            if findings:
+                severities = [f.get('severity', 'low') for f in findings]
+                severity_order = ['low', 'medium', 'high', 'critical']
+                severity = max(severities, key=lambda s: severity_order.index(s) if s in severity_order else -1)
+        
+        severity_emoji = {
+            'critical': '🔴',
+            'high': '🟠',
+            'medium': '🟡',
+            'low': '🟢',
+            'unknown': '⚪'
+        }.get(severity, '⚪')
+        
+        # Create expander for each attack
+        with st.expander(
+            f"{status_emoji} Attack #{row['attack_id']} - {row['attack_name']} {severity_emoji} | Points: {row['points']} | {row['model']}",
+            expanded=False
+        ):
+            # Attack metadata
+            col_meta1, col_meta2, col_meta3 = st.columns(3)
+            with col_meta1:
+                st.caption("**Run ID:**")
+                st.text(row['run_id'])
+            with col_meta2:
+                st.caption("**Timestamp:**")
+                st.text(str(row['timestamp'])[:19] if pd.notna(row['timestamp']) else 'N/A')
+            with col_meta3:
+                st.caption("**Leak Type:**")
+                st.text(row['leak_type'])
+            
+            # Prompt section
+            st.markdown("#### 📝 Attack Prompt")
+            st.code(row['prompt'], language="text")
+            
+            # Response section
+            st.markdown("#### 💬 Model Response")
+            st.code(row['response'][:500] + "..." if len(str(row['response'])) > 500 else row['response'], language="text")
+            
+            if len(str(row['response'])) > 500:
+                with st.expander("Show full response"):
+                    st.code(row['response'], language="text")
+            
+            # Detection details
+            if is_success:
+                st.markdown("#### 🚨 Detection Details")
+                
+                col_det1, col_det2 = st.columns(2)
+                
+                with col_det1:
+                    st.caption("**Leaked Secrets:**")
+                    if isinstance(row['leaked_canaries'], list) and row['leaked_canaries']:
+                        for secret in row['leaked_canaries']:
+                            st.code(secret[:100] + "..." if len(secret) > 100 else secret)
+                    else:
+                        st.text("None detected")
+                
+                with col_det2:
+                    st.caption("**Detectors:**")
+                    if row['detected_by']:
+                        for detector in row['detected_by']:
+                            st.text(f"• {detector}")
+                    else:
+                        st.text("None")
+                
+                # Show detailed findings if available
+                if 'metadata' in row and isinstance(row['metadata'], dict):
+                    findings = row['metadata'].get('finding_details', [])
+                    if findings:
+                        st.markdown("**Detailed Findings:**")
+                        for i, finding in enumerate(findings, 1):
+                            finding_severity = finding.get('severity', 'unknown')
+                            finding_type = finding.get('type', 'unknown')
+                            confidence = finding.get('confidence', 0)
+                            
+                            st.markdown(f"""
+                            **Finding {i}:** {finding_type}
+                            - Severity: {severity_emoji} {finding_severity.upper()}
+                            - Confidence: {confidence:.1%}
+                            """)
+                            
+                            if 'canary_id' in finding:
+                                st.warning(f"🚨 Canary Leaked: `{finding['canary_id']}`")
+                            
+                            if 'secret_type' in finding:
+                                st.info(f"Secret Type: {finding['secret_type']}")
+            
+            st.divider()
 
 with tab2:
     st.write("Select a specific run and attack to examine in detail")
