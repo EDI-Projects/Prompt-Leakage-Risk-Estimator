@@ -42,7 +42,7 @@ Examples:
     parser.add_argument(
         '--iterations',
         type=int,
-        default=3,
+        default=1,
         help='Number of adaptive iterations (default: 3)'
     )
     return parser.parse_args()
@@ -113,10 +113,9 @@ if __name__ == '__main__':
         config = MODEL_CONFIG[provider]
         print(f"Initializing {config['provider']} with model: {config['model']}")
         
-        llm_factory = LLMFactory()
-        llm_instance = llm_factory.create_llm(
+        llm_instance = LLMFactory.create(
             provider=config['provider'],
-            model_name=config['model']
+            model=config['model']
         )
         
         llm_callback = LLMCallback(llm_instance)

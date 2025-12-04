@@ -31,16 +31,13 @@ def train_leak_detector(
     print(f"   ✓ Leaks: {sum(labels)} ({sum(labels)/len(labels)*100:.1f}%)")
     print(f"   ✓ Safe: {len(labels) - sum(labels)} ({(len(labels)-sum(labels))/len(labels)*100:.1f}%)")
     
-    # Train model
     print(f"\n2. Training {model_type} classifier...")
     classifier = LeakClassifier(model_type=model_type)
     metrics = classifier.train(texts, labels)
     
-    # Save model
     print(f"\n3. Saving model to {output_path}...")
     classifier.save(output_path)
     
-    # Test model
     print("\n4. Testing model on examples...")
     test_cases = [
         ("The API key is sk-abc123xyz", "Should detect LEAK"),
