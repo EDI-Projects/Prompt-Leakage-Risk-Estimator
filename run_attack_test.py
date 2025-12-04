@@ -86,10 +86,13 @@ def convert_to_dashboard_format(report: dict, provider: str) -> dict:
     
     aggregate_score = (successful_attacks / total_attacks * 100) if total_attacks > 0 else 0
     
+    # Use actual model name from config
+    model_name = MODEL_CONFIG.get(provider, {}).get('model', 'unknown')
+    
     return {
         "run_id": run_id,
         "timestamp": timestamp,
-        "model": report.get('model', MODEL_CONFIG[provider]['model']),
+        "model": model_name,
         "provider": provider,
         "aggregate_score": round(aggregate_score, 2),
         "total_attacks": total_attacks,

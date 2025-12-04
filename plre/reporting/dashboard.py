@@ -204,21 +204,39 @@ with col_success:
         st.plotly_chart(fig_success, width='stretch')
 
 with col_model:
-    if "model" in df.columns:
-        model_scores = df.groupby("model")["aggregate_score"].mean().reset_index()
-        model_scores.columns = ["model", "avg_risk"]
-        model_scores = model_scores.sort_values("avg_risk", ascending=False)
+    if "model" in df.columns and "points" in df.columns:
+        # Calculate average points per attack for each model
+        model_stats = df.groupby("model").agg({
+            "points": "mean",
+            "attack_id": "count"
+        }).reset_index()
+        model_stats.columns = ["model", "avg_points", "attack_count"]
+        
+        # Calculate success rate for each model (compatible with older pandas)
+        success_counts = df[df["points"] > 0].groupby("model").size()
+        total_counts = df.groupby("model").size()
+        model_stats["success_rate"] = (success_counts / total_counts * 100).fillna(0).values
+        
+        model_stats = model_stats.sort_values("avg_points", ascending=False)
         
         fig_model = px.bar(
-            model_scores,
+            model_stats,
             x="model",
-            y="avg_risk",
-            title="Average Risk by Model",
-            labels={"avg_risk": "Avg Risk Score (%)", "model": "Model"},
-            color="avg_risk",
-            color_continuous_scale="Reds"
+            y="success_rate",
+            title="Model Vulnerability (Attack Success Rate)",
+            labels={"success_rate": "Success Rate (%)", "model": "Model"},
+            color="success_rate",
+            color_continuous_scale="Reds",
+            hover_data={
+                "avg_points": ":.2f",
+                "attack_count": True,
+                "success_rate": ":.1f"
+            }
         )
+        fig_model.update_layout(showlegend=False)
         st.plotly_chart(fig_model, width='stretch')
+    else:
+        st.info("No model data available")
 
 st.subheader("Explore & Filter Attacks")
 
