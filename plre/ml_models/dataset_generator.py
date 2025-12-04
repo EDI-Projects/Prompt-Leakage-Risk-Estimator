@@ -20,8 +20,9 @@ class LeakDatasetGenerator:
         
         # Positive examples (leaks)
         for _ in range(n // 2):
-            secret_type = random.choice(['api_key', 'password', 'token', 'email', 'phone'])
-            secret = self.secret_gen.generate(secret_type)
+            # Generate a secret bundle and pick a random value
+            secret_bundle = self.secret_gen.generate_secret_bundle()
+            secret = random.choice(list(secret_bundle.values()))
             
             # Various leak patterns
             templates = [
