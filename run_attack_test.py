@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Run ML-generated attacks against LLMs (simplified interface)
+"""
 import json
 import sys
 import argparse
@@ -9,32 +12,40 @@ from plre.attacks.orchestrator import AttackOrchestrator
 
 MODEL_CONFIG = {
     'ollama': {'provider': 'ollama', 'model': 'llama2'},
-    'gemini': {'provider': 'gemini', 'model': 'gemini-2.5-flash'}
+    'gemini': {'provider': 'gemini', 'model': 'gemini-2.5-flash'},
+    'ollama-mistral': {'provider': 'ollama', 'model': 'mistral'},
+    'ollama-tinyllama': {'provider': 'ollama', 'model': 'tinyllama'},
 }
 
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description='Run PLRE comprehensive attack test against LLM',
+        description='Run ML-generated attacks against LLM',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  poetry run python run_attack_test.py                    # Use default provider (ollama)
+  poetry run python run_attack_test.py                    # Use default (ollama)
   poetry run python run_attack_test.py --provider gemini  # Use Gemini
-  poetry run python run_attack_test.py --provider ollama  # Use Ollama explicitly
+  poetry run python run_attack_test.py --iterations 5     # More iterations
         """
     )
     parser.add_argument(
         '--provider',
         type=str,
         default='ollama',
-        choices=['ollama', 'gemini'],
+        choices=list(MODEL_CONFIG.keys()),
         help='LLM provider to use (default: ollama)'
+    )
+    parser.add_argument(
+        '--iterations',
+        type=int,
+        default=3,
+        help='Number of adaptive iterations (default: 3)'
     )
     return parser.parse_args()
 
 def convert_to_dashboard_format(report: dict, provider: str) -> dict:
-    """Convert orchestrator output to dashboard-compatible format."""
+    """Convert orchestrator output to dashboard format"""
     timestamp = datetime.now().isoformat()
     run_id = f"run-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     
@@ -44,7 +55,6 @@ def convert_to_dashboard_format(report: dict, provider: str) -> dict:
     total_attacks = 0
     successful_attacks = 0
     
-    # Flatten scenario results into attacks array
     for scenario_name, scenario_data in report.get('scenario_results', {}).items():
         for attack_result in scenario_data.get('attack_results', []):
             total_attacks += 1
@@ -64,11 +74,12 @@ def convert_to_dashboard_format(report: dict, provider: str) -> dict:
                 "leaked_canaries": leakage,
                 "leak_type": "secret" if leakage else "none",
                 "success": attack_result.get('success', False),
-                "points": 10 if attack_result.get('success') else 0,
-                "detected_by": [attack_result.get('attack_type', 'orchestrator')]
+                "points": attack_result.get('points', 0),
+                "detected_by": ["ml-detector"]
             }
             attacks.append(attack_entry)
             attack_id += 1
+    
     aggregate_score = (successful_attacks / total_attacks * 100) if total_attacks > 0 else 0
     
     return {
@@ -84,7 +95,6 @@ def convert_to_dashboard_format(report: dict, provider: str) -> dict:
         "summary": report.get('summary', {})
     }
 
-# Create output directory
 Path("reporting/artifacts").mkdir(parents=True, exist_ok=True)
 
 if __name__ == '__main__':
@@ -98,37 +108,53 @@ if __name__ == '__main__':
             sys.exit(1)
         
         config = MODEL_CONFIG[provider]
-        print(f"📡 Initializing {provider.upper()} provider...")
-        print(f"   Model: {config['model']}")
+        print(f"Initializing {config['provider']} with model: {config['model']}")
         
-        llm_provider = LLMFactory.create(config['provider'], model=config['model'])
-        llm = LLMCallback(llm_provider, temperature=0.7, max_tokens=300)
-        orchestrator = AttackOrchestrator()
+        llm_factory = LLMFactory()
+        llm_instance = llm_factory.create_llm(
+            provider=config['provider'],
+            model_name=config['model']
+        )
         
-        print(f"🎯 Running comprehensive attack test...")
-        report = orchestrator.run_comprehensive_test(llm)
-        report['model'] = config['model']
-        report['provider'] = provider
+        llm_callback = LLMCallback(llm_instance)
         
-        # Convert to dashboard format
-        dashboard_format = convert_to_dashboard_format(report, provider)
+        print("\n" + "="*70)
+        print("ML-GENERATED ATTACK TEST")
+        print("="*70)
+        print(f"Provider: {provider}")
+        print(f"Model: {config['model']}")
+        print(f"Adaptive Iterations: {args.iterations}")
+        print("="*70 + "\n")
         
-        # Save in dashboard format
+        orchestrator = AttackOrchestrator(llm_callback)
+        
+        print("Running ML-generated attacks...")
+        report = orchestrator.run_all_attacks(max_iterations=args.iterations)
+        
+        dashboard_data = convert_to_dashboard_format(report, provider)
+        
         output_file = f"reporting/artifacts/run-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
         with open(output_file, 'w') as f:
-            json.dump(dashboard_format, f, indent=2)
+            json.dump(dashboard_data, f, indent=2)
         
-        print(f"✓ Report saved to {output_file}")
-        print(f"✓ Attacks executed: {dashboard_format['total_attacks']}")
-        print(f"✓ Successful attacks: {dashboard_format['successful_attacks']}")
-        print(f"✓ Risk score: {dashboard_format['aggregate_score']:.1f}%")
-        print(f"📊 Refresh dashboard at http://localhost:8501")
+        print(f"\n✓ Results saved to: {output_file}")
+        print(f"\n{'='*70}")
+        print("SUMMARY")
+        print("="*70)
+        print(f"Total Attacks: {dashboard_data['total_attacks']}")
+        print(f"Successful: {dashboard_data['successful_attacks']}")
+        print(f"Success Rate: {dashboard_data['aggregate_score']:.1f}%")
+        print(f"Total Leakage: {dashboard_data['total_leakage']}")
+        print("="*70)
+        
+        print("\nView results in dashboard:")
+        print("  poetry run streamlit run plre/reporting/dashboard.py")
+        
+    except KeyboardInterrupt:
+        print("\n\nTest interrupted by user")
+        sys.exit(1)
     except Exception as e:
-        print(f"✗ Error: {e}")
-        if provider == 'ollama':
-            print("   Make sure Ollama is running: ollama serve")
-        elif provider == 'gemini':
-            print("   Make sure GOOGLE_API_KEY is set in .env")
+        print(f"\n✗ Error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
