@@ -11,10 +11,13 @@ from plre.models.llm_providers import LLMFactory, LLMCallback
 from plre.attacks.orchestrator import AttackOrchestrator
 
 MODEL_CONFIG = {
-    'ollama': {'provider': 'ollama', 'model': 'llama2'},
-    'gemini': {'provider': 'gemini', 'model': 'gemini-2.5-flash'},
-    'ollama-mistral': {'provider': 'ollama', 'model': 'mistral'},
     'ollama-tinyllama': {'provider': 'ollama', 'model': 'tinyllama'},
+    'ollama-phi': {'provider': 'ollama', 'model': 'phi'},
+    'ollama-phi3': {'provider': 'ollama', 'model': 'phi3'},
+    'ollama-gemma': {'provider': 'ollama', 'model': 'gemma:2b'},
+    'ollama-qwen': {'provider': 'ollama', 'model': 'qwen2.5:0.5b'},
+    'ollama': {'provider': 'ollama', 'model': 'llama2:7b'},
+    'gemini': {'provider': 'gemini', 'model': 'gemini-2.5-flash'},
 }
 
 def parse_arguments():
