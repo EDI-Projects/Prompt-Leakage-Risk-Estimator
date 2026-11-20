@@ -1,121 +1,36 @@
-# Byte-compiled / optimized / DLL files
+
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
+*.pyo
 
 # Virtual environments
-.env
-.venv
-env/
+.venv/
 venv/
-ENV/
-env.bak/
-venv.bak/
+env/
 
-# PyInstaller
-*.manifest
-*.spec
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff
-instance/
-.webassets-cache
-
-# Scrapy stuff
-.scrapy
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# Poetry
-poetry.lock
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath
-*.sage.py
-
-# VS Code settings
+# IDE and OS
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
-# mypy
+# Testing and cache
+.pytest_cache/
 .mypy_cache/
-.dmypy.json
-dmypy.json
+.coverage
 
-# Pyre type checker
-.pyre/
+# Generated reports
+reporting/artifacts/
 
-# pytype
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# Data files
+# Model files (regenerable)
+*.joblib
 *.pkl
-*.csv
-*.tsv
-*.json
 
 # Logs
 *.log
-logs/
